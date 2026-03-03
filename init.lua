@@ -389,7 +389,7 @@ vim.api.nvim_create_autocmd("VimEnter", {
 -- GENERAL SETTINGS
 -- =========================
 vim.opt.clipboard = 'unnamedplus'
-vim.cmd('cd ' .. vim.fn.expand("~/Nvim"))
+vim.cmd('cd ' .. vim.fn.expand("~/Base"))
 
 -- =========================
 -- KEYBINDINGS
