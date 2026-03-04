@@ -405,3 +405,4 @@ vim.keymap.set('n', 'K',         vim.lsp.buf.hover,           { desc = 'Hover do
 vim.keymap.set('n', '<leader>r', vim.lsp.buf.rename,          { desc = 'Rename symbol' })
 vim.keymap.set('n', '<leader>a', vim.lsp.buf.code_action,     { desc = 'Code actions' })
 vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+vim.api.nvim_create_user_command('Sex', 'NvimTreeToggle', {})
