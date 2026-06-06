@@ -44,6 +44,38 @@ end
 -- GENERAL SETTINGS
 -- =========================
 vim.opt.clipboard = 'unnamedplus'
+
+-- Paste mode toggle via F2 (on = raw paste, off = smart editing)
+vim.keymap.set('n', '<F2>', ':set paste!<CR>', { desc = 'Toggle paste mode' })
+
+local fonts = { "JetBrainsMono_Nerd_Font:h14", "Menlo:h14", "Monospace:h14" }
+for _, font in ipairs(fonts) do
+    local pcall_ok = pcall(function() vim.opt.guifont = font end)
+    if pcall_ok then break end
+end
+
+-- Explicitly handle clipboard providers to prevent Mac environment desync
+if vim.env.TMUX or vim.env.SSH_TTY then
+    vim.g.clipboard = {
+        name = 'OSC 52',
+        copy = {
+            ['+'] = require('vim.ui.clipboard.osc52').copy('+'),
+            ['*'] = require('vim.ui.clipboard.osc52').copy('*'),
+        },
+        paste = {
+            ['+'] = require('vim.ui.clipboard.osc52').paste('+'),
+            ['*'] = require('vim.ui.clipboard.osc52').paste('*'),
+        },
+    }
+else
+    vim.g.clipboard = {
+        name = 'macOS-Clipboard',
+        copy = { ['+'] = 'pbcopy', ['*'] = 'pbcopy' },
+        paste = { ['+'] = 'pbpaste', ['*'] = 'pbpaste' },
+        cache_enabled = 1,
+    }
+end
+
 vim.cmd('cd ' .. vim.fn.expand("~/Base"))
 
 -- =========================
@@ -114,7 +146,7 @@ if noice then
             command_palette    = true,
             long_message_to_split = true,
             inc_rename         = false,
-            lsp_doc_border     = true,
+            lsp_doc_border      = true,
         },
         cmdline = {
             view = "cmdline_popup",
@@ -140,7 +172,6 @@ if nvimtree then
     })
 end
 
--- :Sex -> NvimTreeToggle
 vim.api.nvim_create_user_command('Sex', 'NvimTreeToggle', {})
 
 -- =========================
@@ -253,7 +284,6 @@ end
 local autopairs = safe_require("nvim-autopairs")
 if autopairs then autopairs.setup() end
 
--- Tab: jump out of closing bracket, or cycle cmp, or insert tab
 vim.keymap.set('i', '<Tab>', function()
     local closers   = { ')', ']', '}', '"', "'", '`' }
     local line      = vim.api.nvim_get_current_line()
@@ -335,15 +365,17 @@ vim.api.nvim_create_autocmd("VimEnter", {
             "⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣐⣾⡿⡟⢶⠾⢋⢹⠿⢿⣿⣿⣷⣦⡈⠙⠛⠿⠿⢿⣶⣶⣶⣶⣶⢶⠟⠚⠀⠁⠀⠀⠙⠛⠛⠛⠛⠛⠋⠉⠁⠀⠀⠀⠀⠀⢀⠀⠀",
         }
 
-        dashboard.section.buttons.val = {
-            dashboard.button("e", "  New file",      ":ene <BAR> startinsert <CR>"),
-            dashboard.button("r", "  Recent files",  ":Telescope oldfiles<CR>"),
-            dashboard.button("f", "  Find file",     ":Telescope find_files<CR>"),
-            dashboard.button("t", "  File tree",     ":NvimTreeToggle<CR>"),
-            dashboard.button("g", "  Git (Lazy)",    ":LazyGit<CR>"),
-            dashboard.button("m", "  Mason",         ":Mason<CR>"),
-            dashboard.button("q", "  Quit NVIM",     ":qa<CR>"),
-        }
+       dashboard.section.buttons.val = {
+    	   dashboard.button("e", "   New file",     ":ene <BAR> startinsert <CR>"),
+    	   dashboard.button("r", "   Recent files", ":Telescope oldfiles<CR>"),
+    	   dashboard.button("f", "   Find file",    ":Telescope find_files<CR>"),
+    	   dashboard.button("t", "   File tree",    ":NvimTreeToggle<CR>"),
+    	   dashboard.button("g", "   Git (Lazy)",   ":LazyGit<CR>"),
+    	   dashboard.button("m", "   Mason",        ":Mason<CR>"),
+    	   dashboard.button("q", "   Quit NVIM",    ":qa<CR>"),
+}
+        dashboard.section.buttons.opts.shortcut_prefix = ""
+        dashboard.section.buttons.opts.spacing = 1
 
         alpha.setup(dashboard.config)
         vim.cmd("Alpha")
@@ -369,7 +401,7 @@ vim.keymap.set('n', '<leader>g', ':LazyGit<CR>', { desc = 'Open LazyGit' })
 -- LSP
 vim.keymap.set('n', 'gd',        vim.lsp.buf.definition,  { desc = 'Go to definition' })
 vim.keymap.set('n', 'K',         vim.lsp.buf.hover,       { desc = 'Hover docs' })
-vim.keymap.set('n', '<leader>n', vim.lsp.buf.rename,      { desc = 'Rename symbol' })  -- freed <leader>r
+vim.keymap.set('n', '<leader>n', vim.lsp.buf.rename,      { desc = 'Rename symbol' })
 vim.keymap.set('n', '<leader>a', vim.lsp.buf.code_action, { desc = 'Code actions' })
 
 -- Terminal
