@@ -1,3 +1,4 @@
+vim.g.mapleader = ","
 -- =========================
 -- PLUGIN MANAGEMENT
 -- =========================
@@ -402,7 +403,76 @@ vim.keymap.set('n', '<leader>g', ':LazyGit<CR>', { desc = 'Open LazyGit' })
 vim.keymap.set('n', 'gd',        vim.lsp.buf.definition,  { desc = 'Go to definition' })
 vim.keymap.set('n', 'K',         vim.lsp.buf.hover,       { desc = 'Hover docs' })
 vim.keymap.set('n', '<leader>n', vim.lsp.buf.rename,      { desc = 'Rename symbol' })
-vim.keymap.set('n', '<leader>a', vim.lsp.buf.code_action, { desc = 'Code actions' })
+vim.keymap.set('n', '<leader>A', vim.lsp.buf.code_action, { desc = 'Code actions' })
 
 -- Terminal
 vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+
+-- =========================
+-- AUTONOMOUS AGENT DEPLOYMENT
+-- =========================
+local function deploy_antigravity_agent()
+    vim.ui.input({ prompt = 'Agent Prompt: ' }, function(input)
+        if not input or input == "" then return end
+
+        local log_buf = vim.api.nvim_create_buf(false, true)
+        vim.cmd("topleft 40vsplit")
+        local win = vim.api.nvim_get_current_win()
+        vim.api.nvim_win_set_buf(win, log_buf)
+        vim.wo[win].winfixwidth = true
+
+        local agy_path = vim.fn.expand("~/.local/bin/agy")
+        local is_first = true
+
+        local function run_agent(prompt)
+    local cmd = string.format(
+        "zsh -lc '%s -i %s --dangerously-skip-permissions'",
+        agy_path,
+        vim.fn.shellescape(prompt)
+    )
+
+    local term_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_win_set_buf(win, term_buf)
+
+    vim.fn.termopen(cmd, {
+        on_exit = function(_, exit_code)
+            if not vim.api.nvim_win_is_valid(win) then return end
+
+            if exit_code == 0 then
+                vim.notify("Done! Type follow-up and press Enter.", vim.log.levels.INFO)
+                vim.cmd('checktime')
+
+                local term_lines = vim.api.nvim_buf_get_lines(term_buf, 0, -1, false)
+                vim.api.nvim_buf_set_lines(log_buf, -1, -1, false, term_lines)
+
+                vim.api.nvim_win_set_buf(win, log_buf)
+                vim.api.nvim_buf_set_lines(log_buf, -1, -1, false, { "", "❯ " })
+                local last_line = vim.api.nvim_buf_line_count(log_buf)
+                vim.api.nvim_win_set_cursor(win, { last_line, 2 })
+                vim.cmd("startinsert!")
+
+                vim.keymap.set('i', '<CR>', function()
+                    local line = vim.api.nvim_get_current_line()
+                    local follow_up = line:gsub("^❯ ", ""):gsub("^%s+", "")
+                    if follow_up == "" then return end
+                    vim.cmd("stopinsert")
+                    run_agent(follow_up)
+                end, { buffer = log_buf, desc = "Send follow-up" })
+
+                vim.keymap.set('i', '<Esc>', function()
+                    vim.cmd("stopinsert")
+                end, { buffer = log_buf, desc = "Cancel follow-up" })
+            else
+                vim.notify("Agent failed. Check the sidebar.", vim.log.levels.ERROR)
+            end
+        end
+    })
+end
+
+        run_agent(input)
+    end)
+end
+
+vim.keymap.set('n', '<leader>A', deploy_antigravity_agent, { desc = 'Deploy Agent' })
+
+vim.keymap.set('n', '<leader>a', deploy_antigravity_agent, { desc = 'Deploy Agent' })
