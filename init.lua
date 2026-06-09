@@ -28,6 +28,7 @@ vim.cmd([[
   Plug 'folke/which-key.nvim'
   Plug 'lewis6991/gitsigns.nvim'
   Plug 'kdheepak/lazygit.nvim'
+  Plug 'stevearc/dressing.nvim'
 
   call plug#end()
 ]])
@@ -149,6 +150,9 @@ if noice then
             inc_rename         = false,
             lsp_doc_border      = true,
         },
+        views = {
+   	    select = { backend = "popup" },
+	},
         cmdline = {
             view = "cmdline_popup",
             format = {
@@ -411,68 +415,107 @@ vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 -- =========================
 -- AUTONOMOUS AGENT DEPLOYMENT
 -- =========================
-local function deploy_antigravity_agent()
-    vim.ui.input({ prompt = 'Agent Prompt: ' }, function(input)
-        if not input or input == "" then return end
 
-        local log_buf = vim.api.nvim_create_buf(false, true)
-        vim.cmd("topleft 40vsplit")
-        local win = vim.api.nvim_get_current_win()
-        vim.api.nvim_win_set_buf(win, log_buf)
-        vim.wo[win].winfixwidth = true
+local function open_agent_sidebar(agent_choice, prompt)
+    local log_buf = vim.api.nvim_create_buf(false, true)
+    vim.cmd("topleft 40vsplit")
+    local win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(win, log_buf)
+    vim.wo[win].winfixwidth = true
 
-        local agy_path = vim.fn.expand("~/.local/bin/agy")
-        local is_first = true
+local is_first_copilot = true
 
-        local function run_agent(prompt)
-    local cmd = string.format(
-        "zsh -lc '%s -i %s --dangerously-skip-permissions'",
-        agy_path,
-        vim.fn.shellescape(prompt)
-    )
+local function run_agent(p)
+    local cmd
+    if agent_choice == "antigravity" then
+        cmd = string.format(
+            "zsh -lc '%s -i %s --dangerously-skip-permissions'",
+            vim.fn.expand("~/.local/bin/agy"),
+            vim.fn.shellescape(p)
+        )
+    else
+        local flags = is_first_copilot and "-p" or "--continue -p"
+        is_first_copilot = false
+        cmd = string.format(
+            "zsh -lc 'copilot %s %s --allow-all'",
+            flags,
+            vim.fn.shellescape(p)
+        )
+    end
 
-    local term_buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_win_set_buf(win, term_buf)
+        local term_buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_win_set_buf(win, term_buf)
 
-    vim.fn.termopen(cmd, {
-        on_exit = function(_, exit_code)
-            if not vim.api.nvim_win_is_valid(win) then return end
+        vim.fn.termopen(cmd, {
+            on_exit = function(_, exit_code)
+                if not vim.api.nvim_win_is_valid(win) then return end
 
-            if exit_code == 0 then
-                vim.notify("Done! Type follow-up and press Enter.", vim.log.levels.INFO)
-                vim.cmd('checktime')
+                if exit_code == 0 then
+                    vim.notify("Done! Type follow-up and press Enter.", vim.log.levels.INFO)
+                    vim.cmd('checktime')
 
-                local term_lines = vim.api.nvim_buf_get_lines(term_buf, 0, -1, false)
-                vim.api.nvim_buf_set_lines(log_buf, -1, -1, false, term_lines)
+                    local term_lines = vim.api.nvim_buf_get_lines(term_buf, 0, -1, false)
+                    vim.api.nvim_buf_set_lines(log_buf, -1, -1, false, term_lines)
 
-                vim.api.nvim_win_set_buf(win, log_buf)
-                vim.api.nvim_buf_set_lines(log_buf, -1, -1, false, { "", "❯ " })
-                local last_line = vim.api.nvim_buf_line_count(log_buf)
-                vim.api.nvim_win_set_cursor(win, { last_line, 2 })
-                vim.cmd("startinsert!")
+                    vim.api.nvim_win_set_buf(win, log_buf)
+                    vim.api.nvim_buf_set_lines(log_buf, -1, -1, false, { "", "❯ " })
+                    local last_line = vim.api.nvim_buf_line_count(log_buf)
+                    vim.api.nvim_win_set_cursor(win, { last_line, 2 })
+                    vim.cmd("startinsert!")
 
-                vim.keymap.set('i', '<CR>', function()
-                    local line = vim.api.nvim_get_current_line()
-                    local follow_up = line:gsub("^❯ ", ""):gsub("^%s+", "")
-                    if follow_up == "" then return end
-                    vim.cmd("stopinsert")
-                    run_agent(follow_up)
-                end, { buffer = log_buf, desc = "Send follow-up" })
+                    vim.keymap.set('i', '<CR>', function()
+                        local line = vim.api.nvim_get_current_line()
+                        local follow_up = line:gsub("^❯ ", ""):gsub("^%s+", "")
+                        if follow_up == "" then return end
+                        vim.cmd("stopinsert")
+                        run_agent(follow_up)
+                    end, { buffer = log_buf, desc = "Send follow-up" })
 
-                vim.keymap.set('i', '<Esc>', function()
-                    vim.cmd("stopinsert")
-                end, { buffer = log_buf, desc = "Cancel follow-up" })
-            else
-                vim.notify("Agent failed. Check the sidebar.", vim.log.levels.ERROR)
+                    vim.keymap.set('i', '<Esc>', function()
+                        vim.cmd("stopinsert")
+                    end, { buffer = log_buf, desc = "Cancel follow-up" })
+                else
+                    vim.notify("Agent failed. Check the sidebar.", vim.log.levels.ERROR)
+                end
             end
-        end
+        })
+    end
+
+    run_agent(prompt)
+end
+
+local function deploy_agent()
+    -- Step 1: choose agent
+    vim.ui.select(
+    { "🛸  Antigravity CLI", "🐙  GitHub Copilot" },
+    {
+        prompt = "Select agent:",
+        format_item = function(item) return item end,
+    },
+    function(choice)
+        if not choice then return end
+
+        local agent = choice:find("Antigravity") and "antigravity" or "copilot"
+        local icon  = agent == "antigravity" and "🛸 agy" or "🐙 copilot"
+
+        vim.ui.input({ prompt = icon .. " Prompt: " }, function(input)
+            if not input or input == "" then return end
+            open_agent_sidebar(agent, input)
+        end)
+    end
+)
+end
+
+vim.keymap.set('n', '<leader>a', deploy_agent, { desc = 'Deploy Agent' })
+
+local dressing = safe_require("dressing")
+if dressing then
+    dressing.setup({
+        select = {
+            backend = { "telescope" },
+        },
+        input = {
+            enabled = true,
+        },
     })
 end
-
-        run_agent(input)
-    end)
-end
-
-vim.keymap.set('n', '<leader>A', deploy_antigravity_agent, { desc = 'Deploy Agent' })
-
-vim.keymap.set('n', '<leader>a', deploy_antigravity_agent, { desc = 'Deploy Agent' })
