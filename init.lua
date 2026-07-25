@@ -79,7 +79,7 @@ else
     }
 end
 
-vim.cmd('cd ' .. vim.fn.expand("~/Base"))
+vim.cmd('cd ' .. vim.fn.expand("~/base"))
 
 -- =========================
 -- THEME: KANAGAWA
