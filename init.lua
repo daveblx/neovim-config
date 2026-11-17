@@ -112,7 +112,11 @@ end
 local notify = safe_require("notify")
 if notify then vim.notify = notify end
 
-local noice = safe_require("noice")
+-- Noice cannot run in Neovide: the GUI enables ext_cmdline and ext_messages, and
+-- noice refuses to start with either. Its setup would abort on that check anyway,
+-- but only after raising two ERROR notifications on every launch. Skip it there so
+-- the terminal keeps the cmdline popup and Neovide starts clean.
+local noice = not vim.g.neovide and safe_require("noice")
 if noice then
     noice.setup({
         lsp = {
