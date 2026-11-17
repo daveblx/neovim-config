@@ -173,7 +173,20 @@ if nvimtree then
     nvimtree.setup({
         view     = { width = 30, side = "left" },
         renderer = { icons = { show = { git = true, folder = true, file = true, folder_arrow = true } } },
-        filters  = { dotfiles = false },
+        filters  = {
+            dotfiles = false,
+            -- ~/base gitignores its nested repos so the backup repo never tracks
+            -- them. Honouring git's ignore list here hides those projects
+            -- completely, so filter on names instead.
+            git_ignored = false,
+            -- Vim regex, matched against the basename or the path relative to
+            -- cwd. Anchored so `dist` does not swallow `distribution`.
+            custom = {
+                '^node_modules$', '^dist$', '^build$', '^release$', '^out$', '^coverage$',
+                '^\\.venv$', '^venv$', '^__pycache__$', '^\\.git$', '^\\.DS_Store$', '^\\.env',
+                '\\.pyc$', '\\.class$', '\\.log$', '\\.egg-info$',
+            },
+        },
         actions  = { open_file = { quit_on_open = true } },
     })
 end
@@ -423,12 +436,17 @@ if sidekick then
             tools = {
                 opencode = {},
                 copilot  = {},
+                vibe     = {
+                    cmd     = { "vibe" },
+                    is_proc = "\\<vibe\\>",
+                    url     = "https://github.com/mistralai/mistral-vibe",
+                },
             },
         },
     })
 end
 
--- Pick a CLI tool and open it
+-- Pick a CLI tool (opencode, copilot, claude, etc.) and open it
 vim.keymap.set('n', '<leader>a', function()
     require("sidekick.cli").select()
 end, { desc = 'Select AI CLI' })
